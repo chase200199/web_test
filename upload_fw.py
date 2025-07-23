@@ -23,7 +23,7 @@ PASSWORD = "admin"
 
 CHROMEDRIVER_PATH = './chromedriver.exe'
 
-FIRMWARE_FILE_PATH = './Thecus_x86_64_FW.2.06.02.10_build9703'
+FIRMWARE_FILE_PATH = 'C:\\Users\\Chase\\Desktop\\WEB_auto_test\\Thecus_x86_64_FW.2.06.02.10_build9703'
 
 ADMIN_ICON_LOCATOR = (By.XPATH, '//*[@id="img_admin"]')
 POPUP_PASSWORD_FIELD_LOCATOR = (By.XPATH, '//*[@id="pwd"]')
@@ -34,13 +34,15 @@ INVALID_PASSWORD_OK_BUTTON_LOCATOR = (By.XPATH, '//*[@id="ext-comp-1002"]')
 SYSTEM_MANAGEMENT_MENU_LOCATOR = (By.XPATH, '//*[@id="ext-gen53"]/table/tbody/tr/td[2]')
 FIRMWARE_UPGRADE_LOCATOR = (By.XPATH, '//*[@id="ext-gen107"]/div/li[3]/div')
 FILE_UPLOAD_INPUT_LOCATOR = (By.XPATH, '//*[@id="UpgradeUploadFile-file"]')
-APPLY_BUTTON_LOCATOR = (By.XPATH, '//*[@id="ext-gen341"]')
-UPGRADE_POPUP_NEXT1_BUTTON_LOCATOR = (By.XPATH, '//*[@id="ext-gen430"]')
-UPGRADE_POPUP_NEXT2_BUTTON_LOCATOR = (By.XPATH, '//*[@id="ext-gen430"]')
-PROGRESS_BAR_LOCATOR = (By.XPATH, '//*[@id="ext-gen597"]')
-CONTINUE_LOCATOR = (By.XPATH, '//*[@id="ext-gen448"]')
-REBOOT_BUTTON_LOCATOR = (By.XPATH, '//*[@id="ext-gen766"]')
-REBOOT_CONFIRM_YES_LOCATOR = (By.XPATH, '//*[@id="ext-gen923"]')
+APPLY_BUTTON_LOCATOR = (By.XPATH, '//button[text()="Apply"]')
+UPGRADE_POPUP_NEXT1_BUTTON_LOCATOR = (By.XPATH, '//*[@id="UpgradeNext"]//button[text()="Next"]')
+EXTRACT_FIRMWARE_LOCATOR = (By.XPATH, '//div[contains(text(), "Extracting and verifying firmware...")]')
+UPGRADE_POPUP_NEXT2_BUTTON_LOCATOR = (By.XPATH, '//*[@id="UpgradeNext"]')
+PROGRESS_BAR_LOCATOR = (By.CLASS_NAME, 'x-progress-text')
+FIRMWARE_UPGRADED_SUCCESSFULLY_LOCATOR = (By.ID, 'UpgradeResultTitle')
+CONTINUE_LOCATOR = (By.XPATH, '//button[text()="Continue"]')
+REBOOT_BUTTON_LOCATOR = (By.XPATH, '//button[text()="Reboot"]')
+REBOOT_CONFIRM_YES_LOCATOR = (By.XPATH, '//button[text()="Yes"]')
 
 def setup_driver():
     chrome_options = Options()
@@ -87,7 +89,7 @@ def login_web_ui(driver, url, password, admin_icon_locator, pass_locator, login_
             time.sleep(3)
             return True
         except TimeoutException:
-            logger.info("位在預期時間內導向新頁面, 檢查錯誤彈出框")
+            logger.info("未在預期時間內導向新頁面, 檢查錯誤彈出框")
             try:
                 error_popup = WebDriverWait(driver, 5).until(
                     EC.presence_of_element_located(invalid_popup_locator)
@@ -112,7 +114,7 @@ def login_web_ui(driver, url, password, admin_icon_locator, pass_locator, login_
     
 def upload_firmware(driver, sys_mgmt_locator, fw_upgrade_locator, file_input_locator, apply_btn_locator, next1_btn1_locator, next2_btn_locator, progress_bar_locator, continue_btn_locator, reboot_btn_locator, confirm_yes_locator, firmware_file_path):
     try:
-        Logger.info("點擊[Sysmte Management]...")
+        logger.info("點擊[Sysmte Management]...")
         sys_mgmt_btn = WebDriverWait(driver,10).until(EC.element_to_be_clickable(sys_mgmt_locator))
         sys_mgmt_btn.click()
         time.sleep(2)
@@ -122,33 +124,50 @@ def upload_firmware(driver, sys_mgmt_locator, fw_upgrade_locator, file_input_loc
         fw_upgrade_btn.click()
         time.sleep(3)
 
-        logger.info(f"上船韌體檔案: {firmware_file_path}")
+        logger.info(f"上傳韌體檔案: {firmware_file_path}")
         file_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located(file_input_locator))
         file_input.send_keys(firmware_file_path)
         time.sleep(5)
 
-        Logger.info("點擊韌體升級彈出窗的第一個[Next]按鈕...")
+        logger.info("點擊[Apply]按鈕...")
+        apply_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable(apply_btn_locator))
+        apply_button.click()
+        time.sleep(2)
+
+        logger.info("點擊韌體升級彈出窗的第一個[Next]按鈕...")
         next_button1 = WebDriverWait(driver, 10).until(EC.element_to_be_clickable(next1_btn1_locator))
         next_button1.click()
         time.sleep(2)
 
-        Logger.info("點擊韌體升級彈出窗的第二個[Next]按鈕...")
+        logger.info("等待 'Extracting and verifying firmware...'訊息消失")
         try:
-            next_button2 = WebDriverWait(driver, 10).until(EC.element_to_be_clickable(next2_btn_locator))
+            WebDriverWait(driver, 60).until(
+                EC.invisibility_of_element_located(EXTRACT_FIRMWARE_LOCATOR)
+            )
+            logger.info("'Extracting and verifying firmware...'訊息已消失, 準備點擊第二個[Next]。")
+            time.sleep(2)
+        except TimeoutException:
+            logger.warning("'Extracting and verifying firmware...'訊息未消失, 可能需要手動確認。")
+
+        logger.info("點擊韌體升級彈出窗的第二個[Next]按鈕...")
+        try:
+            next_button2 = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(next2_btn_locator))
             next_button2.click()
+            logger.info("第二個[Next]按鈕已點擊。")
+            time.sleep(2)
         except TimeoutException:
             logger.warning("第二個[Next]按鈕未出現, 繼續下一步")
-            return True
-        
-        logger.info("等待韌體升級進度條完成...")
-        WebDriverWait(driver, 300).until(
-            EC.invisibility_of_element_located(progress_bar_locator)
-        )
-        logger.info("韌體升級進度條已完成。")
-        time.sleep(5)
 
-        Logger.info("點擊[Firmware Successfully Upgraded]視窗中的[Continue]按鈕...")
-        continue_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable(continue_btn_locator))
+        logger.info("等待 'Firmware Successfully Upgraded' 訊息")
+        try:
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located(FIRMWARE_UPGRADED_SUCCESSFULLY_LOCATOR))
+            logger.info("'Firmware Successfully Upgraded' 訊息已出現。")
+            time.sleep(2)
+        except TimeoutException:
+            logger.error("'Firmware Successfully Upgraded' 訊息未出現, 可能升級失敗。")
+
+        logger.info("點擊[Firmware Successfully Upgraded]視窗中的[Continue]按鈕...")
+        continue_button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(continue_btn_locator))
         continue_button.click()
         time.sleep(5)
 
@@ -161,7 +180,7 @@ def upload_firmware(driver, sys_mgmt_locator, fw_upgrade_locator, file_input_loc
         confirm_yes_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable(confirm_yes_locator))
         confirm_yes_button.click() 
         logger.info("[Yes]按鈕已點擊。")
-        time.sleep(300)
+        time.sleep(3)
 
         return True
     except Exception as e:
@@ -175,7 +194,7 @@ def main():
     try: 
         driver = setup_driver()
         if login_web_ui(driver, WEB_UI_LOGIN_URL, PASSWORD, ADMIN_ICON_LOCATOR, POPUP_PASSWORD_FIELD_LOCATOR, POPUP_LOGIN_BUTTON_LOCATOR, SUCCESS_LOGIN_INDICATOR, INVALID_PASSWORD_POPUP_LOCATOR, INVALID_PASSWORD_OK_BUTTON_LOCATOR):
-            upgrade_firmware(driver, SYSTEM_MANAGEMENT_MENU_LOCATOR, FIRMWARE_UPGRADE_LOCATOR, FILE_UPLOAD_INPUT_LOCATOR, APPLY_BUTTON_LOCATOR, UPGRADE_POPUP_NEXT1_BUTTON_LOCATOR, UPGRADE_POPUP_NEXT2_BUTTON_LOCATOR, PROGRESS_BAR_LOCATOR, CONTINUE_LOCATOR, REBOOT_BUTTON_LOCATOR, REBOOT_CONFIRM_YES_LOCATOR, FIRMWARE_FILE_PATH)
+            upload_firmware(driver, SYSTEM_MANAGEMENT_MENU_LOCATOR, FIRMWARE_UPGRADE_LOCATOR, FILE_UPLOAD_INPUT_LOCATOR, APPLY_BUTTON_LOCATOR, UPGRADE_POPUP_NEXT1_BUTTON_LOCATOR, UPGRADE_POPUP_NEXT2_BUTTON_LOCATOR, PROGRESS_BAR_LOCATOR, CONTINUE_LOCATOR, REBOOT_BUTTON_LOCATOR, REBOOT_CONFIRM_YES_LOCATOR, FIRMWARE_FILE_PATH)
         else:
             logger.info("未能登入, 跳過韌體更新步驟。")
     except Exception as e:
